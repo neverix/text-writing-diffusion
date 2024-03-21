@@ -1343,7 +1343,7 @@ class GaussianDiffusion:
                 print((getattr(arr, 'device'), arr.dtype))
                 raise e
         else:
-            res = th.from_numpy(arr).to(device=timesteps.device)[timesteps].float()
+            res = th.from_numpy(arr).float().to(device=timesteps.device)[timesteps]
             self.tensorize(timesteps.device)
         while len(res.shape) < len(broadcast_shape):
             res = res[..., None]

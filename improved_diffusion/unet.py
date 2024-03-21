@@ -86,8 +86,9 @@ def partial_forward(
 def clip_encode_text_nopool(token_embedding, positional_embedding, transformer, toks, dtype=th.float32, out_format='nld',
                             ln_final=None,
                             use_penultimate_layer=False):
+    clip_device = transformer.resblocks[0].attn.out_proj.weight.device
     clip_dtype = transformer.resblocks[0].attn.out_proj.weight.dtype
-    x = token_embedding(toks).type(clip_dtype)  # [batch_size, n_ctx, d_model]
+    x = token_embedding(toks.to(clip_device)).type(clip_dtype)  # [batch_size, n_ctx, d_model]
 
     x = x + positional_embedding.type(clip_dtype)
     x = x.permute(1, 0, 2)  # NLD -> LND
@@ -585,7 +586,7 @@ class AttentionBlock(GlideStyleBlock):
             encoder_kv = self.encoder_kv(encoder_out)
             encoder_kv = encoder_kv.reshape(b * self.num_heads, -1, encoder_kv.shape[2])
 
-            my_attn_mask = th.tile(attn_mask.unsqueeze(1), (self.num_heads, qkv.shape[2], 1))
+            my_attn_mask = th.tile(attn_mask.unsqueeze(1), (self.num_heads, qkv.shape[2], 1)).to(qkv.device)
 
             my_attn_mask = th.cat([my_attn_mask, th.ones((qkv.shape[0], qkv.shape[2], qkv.shape[2]), dtype=bool, device=qkv.device)], dim=2)
             my_attn_mask = (~my_attn_mask).to(encoder_kv.dtype) * -10000.

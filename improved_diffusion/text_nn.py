@@ -43,6 +43,7 @@ class LineEmbedding(nn.Module):
 
     def forward(self, x):
         n = (x == self.line_sep_id).to(torch.int).cumsum(dim=1).clamp(max=self.max_lines - 1)
+        n = n.to(self.emb.weight.device)
         pos_emb = self.emb(n)
         return pos_emb * self.scale
 
@@ -131,6 +132,7 @@ class TextEncoder(nn.Module):
             raise ValueError('no longer supported')
         else:
             x = tokens
+            x = x.to(self.token_emb.weight.device)
             x = self.token_emb(x)
             # tok_norm = (x ** 2).sum().sqrt().item()
             pe = self.pos_emb(x)
@@ -207,17 +209,18 @@ class BetterMultiheadAttention(torch.nn.MultiheadAttention):
         value = self.v(value)
 
         in_dtype = query.dtype
+        device = query.device
 
         attn_output, attn_output_weights = torch.nn.functional.multi_head_attention_forward(
-            query, key, value, self.qkv_dim, self.num_heads,
+            query.to(device), key.to(device), value.to(device), self.qkv_dim, self.num_heads,
             self.in_proj_weight, self.in_proj_bias,
             self.bias_k, self.bias_v, self.add_zero_attn,
             self.dropout, self.out_proj.weight, self.out_proj.bias,
             training=self.training,
             key_padding_mask=None, need_weights=need_weights,
-            attn_mask=attn_mask, use_separate_proj_weight=True,
-            q_proj_weight=self.fake_proj_weight, k_proj_weight=self.fake_proj_weight,
-            v_proj_weight=self.fake_proj_weight)
+            attn_mask=attn_mask.to(device), use_separate_proj_weight=True,
+            q_proj_weight=self.fake_proj_weight.to(device), k_proj_weight=self.fake_proj_weight.to(device),
+            v_proj_weight=self.fake_proj_weight.to(device))
 
         attn_output = attn_output.to(in_dtype)
 
